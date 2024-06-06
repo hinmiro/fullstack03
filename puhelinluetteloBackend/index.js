@@ -28,6 +28,10 @@ let persons = [
   },
 ];
 
+const generateId = () => {
+  return Math.floor(Math.random() * 10000);
+};
+
 const app = express();
 app.use(express.json());
 
@@ -61,6 +65,33 @@ app.delete("/api/persons/:id", (req, res) => {
   } else {
     res.status(400).json({ message: "Not found" });
   }
+});
+
+app.post("/api/persons", (req, res) => {
+  const body = req.body;
+
+  if (!body.number || !body.name) {
+    return res
+      .status(400)
+      .json({ message: "There needs to be number and name" });
+  }
+
+  const duplicate = persons.find(
+    (person) => person.name.toLowerCase() === body.name.toLowerCase(),
+  );
+
+  if (duplicate) {
+    return res.status(400).json({ message: "Name must be unique" });
+  }
+
+  const personObject = {
+    name: body.name,
+    number: body.number,
+    id: generateId(),
+  };
+
+  persons = persons.concat(personObject);
+  res.status(201).json({ message: "New person added", persons: persons });
 });
 
 const PORT = 3001;
