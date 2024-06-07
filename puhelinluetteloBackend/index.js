@@ -1,4 +1,5 @@
 import express from "express";
+import morgan from "morgan";
 
 let persons = [
   {
@@ -28,6 +29,18 @@ let persons = [
   },
 ];
 
+/*morgan.token("method", (req, res) => req.method);
+morgan.token("url", (req, res) => req.url);
+morgan.token("status", (req, res) => res.statusCode);
+morgan.token("content-length", (req, res) => res.get("Content-Length"));
+morgan.token("response-time", (req, res) => res.get("response-time"));
+morgan.token("body", (req, res) =>
+  req.method === "POST" ? JSON.stringify(req.body) : "",
+);
+
+const formatString =
+  ":method :url :status :res[content-length] - :response-time ms :body";*/
+
 const generateId = () => {
   return Math.floor(Math.random() * 10000);
 };
@@ -35,12 +48,29 @@ const generateId = () => {
 const app = express();
 app.use(express.json());
 
+app.use(
+  morgan(function (tokens, req, res) {
+    return [
+      tokens.method(req, res),
+      tokens.url(req, res),
+      tokens.status(req, res),
+      tokens.res(req, res, "content-length"),
+      "-",
+      tokens["response-time"](req, res),
+      "ms",
+      req.method === "POST" ? JSON.stringify(req.body) : "",
+    ].join(" ");
+  }),
+);
+
+//app.use(morgan(formatString));
+
 app.get("/api/persons", (req, res) => {
   res.status(200).json(persons);
 });
 
 app.get("/api/persons/:id", (req, res) => {
-  const data = persons.find((person) => person.id === req.params.id);
+  const data = persons.find((person) => person.id === parseInt(req.params.id));
   data
     ? res.status(200).json(data)
     : res.status(400).json({ message: "Not found" });
@@ -98,9 +128,5 @@ const PORT = 3001;
 const URL = "127.0.0.1";
 app.listen(PORT, () => {
   console.log(`
-    Server
-    is
-    running
-    on
-    http://${URL}:${PORT}`);
+    Server is running on http://${URL}:${PORT}`);
 });
