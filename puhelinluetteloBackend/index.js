@@ -1,5 +1,6 @@
 import express from "express";
 import morgan from "morgan";
+import cors from "cors";
 
 let persons = [
   {
@@ -29,24 +30,13 @@ let persons = [
   },
 ];
 
-/*morgan.token("method", (req, res) => req.method);
-morgan.token("url", (req, res) => req.url);
-morgan.token("status", (req, res) => res.statusCode);
-morgan.token("content-length", (req, res) => res.get("Content-Length"));
-morgan.token("response-time", (req, res) => res.get("response-time"));
-morgan.token("body", (req, res) =>
-  req.method === "POST" ? JSON.stringify(req.body) : "",
-);
-
-const formatString =
-  ":method :url :status :res[content-length] - :response-time ms :body";*/
-
 const generateId = () => {
   return Math.floor(Math.random() * 10000);
 };
 
 const app = express();
 app.use(express.json());
+app.use(cors());
 
 app.use(
   morgan(function (tokens, req, res) {
@@ -62,8 +52,6 @@ app.use(
     ].join(" ");
   }),
 );
-
-//app.use(morgan(formatString));
 
 app.get("/api/persons", (req, res) => {
   res.status(200).json(persons);
@@ -91,9 +79,9 @@ app.delete("/api/persons/:id", (req, res) => {
 
   if (personToRem) {
     persons = persons.filter((person) => person.id !== id);
-    res.sendStatus(200);
+    res.status(200).json(persons);
   } else {
-    res.status(400).json({ message: "Not found" });
+    res.status(400).json(persons);
   }
 });
 
@@ -121,10 +109,19 @@ app.post("/api/persons", (req, res) => {
   };
 
   persons = persons.concat(personObject);
-  res.status(201).json({ message: "New person added", persons: persons });
+  res.status(201).json(personObject);
 });
 
-const PORT = 3001;
+app.put("/api/persons/:id", (req, res) => {
+  const remPerson = req.body;
+  persons = persons.map((person) =>
+    person.id === remPerson.id ? (person = remPerson) : person,
+  );
+  console.log(persons);
+  return persons;
+});
+
+const PORT = process.env.PORT || 3001;
 const URL = "127.0.0.1";
 app.listen(PORT, () => {
   console.log(`
