@@ -1,38 +1,15 @@
+import "dotenv/config";
+import {
+  getPersons,
+  postPerson,
+  removePerson,
+  updatePerson,
+  findById,
+} from "./models/persons.js";
+import { errorHandler } from "./middlewares.js";
 import express from "express";
 import morgan from "morgan";
 import cors from "cors";
-
-let persons = [
-  {
-    name: "Arto Hellas",
-    number: "040-123456",
-    id: 1,
-  },
-  {
-    name: "Ada Lovelace",
-    number: "39-44-5323523",
-    id: 2,
-  },
-  {
-    name: "Dan Abramov",
-    number: "12-43-234345",
-    id: 3,
-  },
-  {
-    name: "Mary Poppendieck",
-    number: "39-23-6423122",
-    id: 4,
-  },
-  {
-    name: "Bruce Banner",
-    number: "53-223-554335",
-    id: 5,
-  },
-];
-
-const generateId = () => {
-  return Math.floor(Math.random() * 10000);
-};
 
 const app = express();
 app.use(express.json());
@@ -54,19 +31,20 @@ app.use(
   }),
 );
 
-app.get("/api/persons", (req, res) => {
-  res.status(200).json(persons);
+app.get("/api/persons", async (req, res) => {
+  return res.status(200).json(await getPersons());
 });
 
-app.get("/api/persons/:id", (req, res) => {
-  const data = persons.find((person) => person.id === parseInt(req.params.id));
-  data
-    ? res.status(200).json(data)
+app.get("/api/persons/:id", async (req, res, next) => {
+  const person = await findById(req.params.id).catch((err) => next(err));
+  person
+    ? res.status(200).json(person)
     : res.status(400).json({ message: "Not found" });
 });
 
-app.get("/info", (req, res) => {
+app.get("/info", async (req, res) => {
   const now = new Date();
+  const persons = await getPersons();
   res
     .status(200)
     .send(
@@ -74,19 +52,18 @@ app.get("/info", (req, res) => {
     );
 });
 
-app.delete("/api/persons/:id", (req, res) => {
-  const id = Number(req.params.id);
-  const personToRem = persons.find((person) => person.id === id);
-
-  if (personToRem) {
-    persons = persons.filter((person) => person.id !== id);
-    res.status(200).json(persons);
+app.delete("/api/persons/:id", async (req, res, next) => {
+  const id = req.params.id;
+  await removePerson(id).catch((err) => next(err));
+  const persons = await getPersons();
+  if (persons) {
+    return res.status(200).json(persons);
   } else {
-    res.status(400).json(persons);
+    return res.sendStatus(404);
   }
 });
 
-app.post("/api/persons", (req, res) => {
+app.post("/api/persons", async (req, res, next) => {
   const body = req.body;
 
   if (!body.number || !body.name) {
@@ -94,7 +71,7 @@ app.post("/api/persons", (req, res) => {
       .status(400)
       .json({ message: "There needs to be number and name" });
   }
-
+  const persons = await getPersons();
   const duplicate = persons.find(
     (person) => person.name.toLowerCase() === body.name.toLowerCase(),
   );
@@ -103,24 +80,25 @@ app.post("/api/persons", (req, res) => {
     return res.status(400).json({ message: "Name must be unique" });
   }
 
-  const personObject = {
-    name: body.name,
-    number: body.number,
-    id: generateId(),
-  };
-
-  persons = persons.concat(personObject);
-  res.status(201).json(personObject);
+  return postPerson(body.name, body.number)
+    .then((result) => {
+      return res.status(201).json(result);
+    })
+    .catch((err) => {
+      return next(err);
+    });
 });
 
-app.put("/api/persons/:id", (req, res) => {
-  const remPerson = req.body;
-  persons = persons.map((person) =>
-    person.id === remPerson.id ? (person = remPerson) : person,
+app.put("/api/persons/:id", async (req, res, next) => {
+  const id = req.params.id;
+  const person = req.body;
+  const updatedPerson = await updatePerson(id, person).catch((err) =>
+    next(err),
   );
-  console.log(persons);
-  return persons;
+  return res.status(200).json(updatedPerson);
 });
+
+app.use(errorHandler);
 
 const PORT = process.env.PORT || 3001;
 const URL = "127.0.0.1";
